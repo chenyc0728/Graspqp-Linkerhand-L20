@@ -1,0 +1,430 @@
+{
+ "linkerhand_l20": {
+  "n_dofs": 16,
+  "forward_axis": [
+   0.0,
+   0.0,
+   1.0
+  ],
+  "up_axis": [
+   1.0,
+   0.0,
+   0.0
+  ],
+  "grasp_axis": [
+   0.0,
+   0.0,
+   1.0
+  ],
+  "actuated_joints": [
+   "pinky_mcp_roll",
+   "pinky_mcp_pitch",
+   "pinky_pip",
+   "ring_mcp_roll",
+   "ring_mcp_pitch",
+   "ring_pip",
+   "middle_mcp_roll",
+   "middle_mcp_pitch",
+   "middle_pip",
+   "index_mcp_roll",
+   "index_mcp_pitch",
+   "index_pip",
+   "thumb_cmc_yaw",
+   "thumb_cmc_roll",
+   "thumb_cmc_pitch",
+   "thumb_mcp"
+  ],
+  "joints_lower": [
+   -0.17000000178813934,
+   0.0,
+   0.0,
+   -0.17000000178813934,
+   0.0,
+   0.0,
+   -0.17000000178813934,
+   0.0,
+   0.0,
+   -0.17000000178813934,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "joints_upper": [
+   0.17000000178813934,
+   1.399999976158142,
+   1.5700000524520874,
+   0.17000000178813934,
+   1.399999976158142,
+   1.5700000524520874,
+   0.17000000178813934,
+   1.399999976158142,
+   1.5700000524520874,
+   0.17000000178813934,
+   1.399999976158142,
+   1.5700000524520874,
+   1.399999976158142,
+   1.2200000286102295,
+   0.7900000214576721,
+   1.0499999523162842
+  ],
+  "default_state": [
+   0.009999999776482582,
+   0.009999999776482582,
+   0.009999999776482582,
+   0.009999999776482582,
+   0.009999999776482582,
+   0.009999999776482582,
+   0.009999999776482582,
+   0.009999999776482582,
+   0.009999999776482582,
+   0.009999999776482582,
+   0.009999999776482582,
+   0.009999999776482582,
+   0.009999999776482582,
+   0.009999999776482582,
+   0.009999999776482582,
+   0.009999999776482582
+  ],
+  "mesh_audit": [
+   {
+    "link": "hand_base_link",
+    "n_tri": 42908,
+    "signed_volume_cm3": 100.96195636055172,
+    "watertight": false,
+    "winding_consistent": true,
+    "components": 10,
+    "area_cm2": 1160.2389830421928,
+    "bbox_extent_mm": [
+     69.39,
+     106.21,
+     168.93
+    ],
+    "inside_out": false
+   },
+   {
+    "link": "pinky_metacarpals",
+    "n_tri": 1414,
+    "signed_volume_cm3": 0.8733708552318674,
+    "watertight": true,
+    "winding_consistent": true,
+    "components": 1,
+    "area_cm2": 11.856565687787947,
+    "bbox_extent_mm": [
+     19.77,
+     17.0,
+     13.33
+    ],
+    "inside_out": false
+   },
+   {
+    "link": "pinky_proximal",
+    "n_tri": 16145,
+    "signed_volume_cm3": 4.483706305347272,
+    "watertight": false,
+    "winding_consistent": true,
+    "components": 28,
+    "area_cm2": 79.49283243817783,
+    "bbox_extent_mm": [
+     21.79,
+     16.97,
+     52.78
+    ],
+    "inside_out": false
+   },
+   {
+    "link": "pinky_middle",
+    "n_tri": 14938,
+    "signed_volume_cm3": 2.400567777518615,
+    "watertight": true,
+    "winding_consistent": true,
+    "components": 3,
+    "area_cm2": 50.19662584259753,
+    "bbox_extent_mm": [
+     19.31,
+     16.39,
+     36.71
+    ],
+    "inside_out": false
+   },
+   {
+    "link": "pinky_distal",
+    "n_tri": 19016,
+    "signed_volume_cm3": 3.3990574052720093,
+    "watertight": false,
+    "winding_consistent": true,
+    "components": 4,
+    "area_cm2": 45.789169087455335,
+    "bbox_extent_mm": [
+     21.26,
+     15.41,
+     34.49
+    ],
+    "inside_out": false
+   },
+   {
+    "link": "ring_metacarpals",
+    "n_tri": 1414,
+    "signed_volume_cm3": 0.8733708552318674,
+    "watertight": true,
+    "winding_consistent": true,
+    "components": 1,
+    "area_cm2": 11.856565687787947,
+    "bbox_extent_mm": [
+     19.77,
+     17.0,
+     13.33
+    ],
+    "inside_out": false
+   },
+   {
+    "link": "ring_proximal",
+    "n_tri": 16145,
+    "signed_volume_cm3": 4.483705810180635,
+    "watertight": false,
+    "winding_consistent": true,
+    "components": 28,
+    "area_cm2": 79.49282797967071,
+    "bbox_extent_mm": [
+     21.79,
+     16.97,
+     52.78
+    ],
+    "inside_out": false
+   },
+   {
+    "link": "ring_middle",
+    "n_tri": 14940,
+    "signed_volume_cm3": 2.4005678406414215,
+    "watertight": true,
+    "winding_consistent": true,
+    "components": 3,
+    "area_cm2": 50.196627448408044,
+    "bbox_extent_mm": [
+     19.31,
+     16.39,
+     36.71
+    ],
+    "inside_out": false
+   },
+   {
+    "link": "ring_distal",
+    "n_tri": 19016,
+    "signed_volume_cm3": 3.399057489872352,
+    "watertight": false,
+    "winding_consistent": true,
+    "components": 4,
+    "area_cm2": 45.789161439728154,
+    "bbox_extent_mm": [
+     21.26,
+     15.41,
+     34.49
+    ],
+    "inside_out": false
+   },
+   {
+    "link": "middle_metacarpals",
+    "n_tri": 1414,
+    "signed_volume_cm3": 0.8733708552318674,
+    "watertight": true,
+    "winding_consistent": true,
+    "components": 1,
+    "area_cm2": 11.856565687787947,
+    "bbox_extent_mm": [
+     19.77,
+     17.0,
+     13.33
+    ],
+    "inside_out": false
+   },
+   {
+    "link": "middle_proximal",
+    "n_tri": 16151,
+    "signed_volume_cm3": 4.4837060864649905,
+    "watertight": false,
+    "winding_consistent": true,
+    "components": 28,
+    "area_cm2": 79.49283045338075,
+    "bbox_extent_mm": [
+     21.79,
+     16.97,
+     52.78
+    ],
+    "inside_out": false
+   },
+   {
+    "link": "middle_middle",
+    "n_tri": 14938,
+    "signed_volume_cm3": 2.4005674581595953,
+    "watertight": true,
+    "winding_consistent": true,
+    "components": 3,
+    "area_cm2": 50.19662335286416,
+    "bbox_extent_mm": [
+     19.31,
+     16.39,
+     36.71
+    ],
+    "inside_out": false
+   },
+   {
+    "link": "middle_distal",
+    "n_tri": 19016,
+    "signed_volume_cm3": 3.399057253233391,
+    "watertight": false,
+    "winding_consistent": true,
+    "components": 4,
+    "area_cm2": 45.789170138425646,
+    "bbox_extent_mm": [
+     21.26,
+     15.41,
+     34.49
+    ],
+    "inside_out": false
+   },
+   {
+    "link": "index_metacarpals",
+    "n_tri": 1414,
+    "signed_volume_cm3": 0.8733708552318674,
+    "watertight": true,
+    "winding_consistent": true,
+    "components": 1,
+    "area_cm2": 11.856565687787947,
+    "bbox_extent_mm": [
+     19.77,
+     17.0,
+     13.33
+    ],
+    "inside_out": false
+   },
+   {
+    "link": "index_proximal",
+    "n_tri": 16149,
+    "signed_volume_cm3": 4.483705782729554,
+    "watertight": false,
+    "winding_consistent": true,
+    "components": 28,
+    "area_cm2": 79.49282875266586,
+    "bbox_extent_mm": [
+     21.79,
+     16.97,
+     52.78
+    ],
+    "inside_out": false
+   },
+   {
+    "link": "index_middle",
+    "n_tri": 14938,
+    "signed_volume_cm3": 2.4005680682332233,
+    "watertight": true,
+    "winding_consistent": true,
+    "components": 3,
+    "area_cm2": 50.196621081592866,
+    "bbox_extent_mm": [
+     19.31,
+     16.39,
+     36.71
+    ],
+    "inside_out": false
+   },
+   {
+    "link": "index_distal",
+    "n_tri": 19016,
+    "signed_volume_cm3": 3.3990573466631973,
+    "watertight": false,
+    "winding_consistent": true,
+    "components": 4,
+    "area_cm2": 45.789166645664075,
+    "bbox_extent_mm": [
+     21.26,
+     15.41,
+     34.49
+    ],
+    "inside_out": false
+   },
+   {
+    "link": "thumb_metacarpals_base2",
+    "n_tri": 9650,
+    "signed_volume_cm3": 8.519820109621069,
+    "watertight": false,
+    "winding_consistent": true,
+    "components": 3,
+    "area_cm2": 88.75334272606108,
+    "bbox_extent_mm": [
+     20.77,
+     51.01,
+     58.25
+    ],
+    "inside_out": false
+   },
+   {
+    "link": "thumb_metacarpals_base1",
+    "n_tri": 5732,
+    "signed_volume_cm3": 4.581039031529488,
+    "watertight": true,
+    "winding_consistent": true,
+    "components": 2,
+    "area_cm2": 48.605730029826304,
+    "bbox_extent_mm": [
+     23.49,
+     27.67,
+     43.79
+    ],
+    "inside_out": false
+   },
+   {
+    "link": "thumb_metacarpals",
+    "n_tri": 20932,
+    "signed_volume_cm3": 22.811284677736023,
+    "watertight": false,
+    "winding_consistent": true,
+    "components": 69,
+    "area_cm2": 183.4936887247552,
+    "bbox_extent_mm": [
+     34.79,
+     30.93,
+     73.81
+    ],
+    "inside_out": false
+   },
+   {
+    "link": "thumb_proximal",
+    "n_tri": 13530,
+    "signed_volume_cm3": 5.151272772058841,
+    "watertight": false,
+    "winding_consistent": true,
+    "components": 43,
+    "area_cm2": 62.97249954795839,
+    "bbox_extent_mm": [
+     24.5,
+     19.12,
+     42.88
+    ],
+    "inside_out": false
+   },
+   {
+    "link": "thumb_distal",
+    "n_tri": 22414,
+    "signed_volume_cm3": 6.13187199569873,
+    "watertight": false,
+    "winding_consistent": true,
+    "components": 62,
+    "area_cm2": 67.17763491783788,
+    "bbox_extent_mm": [
+     21.12,
+     18.24,
+     37.94
+    ],
+    "inside_out": false
+   }
+  ],
+  "occupancy": {
+   "n_cells": 32768,
+   "n_occupied": 0,
+   "frac_occupied": 0.0,
+   "per_link": []
+  }
+ }
+}

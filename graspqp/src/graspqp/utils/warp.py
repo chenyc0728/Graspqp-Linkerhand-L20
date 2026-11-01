@@ -197,6 +197,7 @@ def mesh_sdf_field_batched(
     meshes: wp.array2d(dtype=wp.uint64),  # [n_env, n_link]
     points: wp.array3d(dtype=wp.vec3),  # [n_env, n_link, n_point]  -- ALREADY in each link's local frame
     max_dist: float,
+    use_winding_number: int,  # 0 = pseudo-normal sign, 1 = generalized winding number
     # outputs
     sdf: wp.array3d(dtype=wp.float32),  # [n_env, n_link, n_point]  signed (exterior +, interior -)
     grad_dir: wp.array3d(dtype=wp.vec3),  # [n_env, n_link, n_point]  exact d(sdf)/d(point)
@@ -212,7 +213,17 @@ def mesh_sdf_field_batched(
     face_u = float(0.0)
     face_v = float(0.0)
     sign = float(0.0)
-    res = wp.mesh_query_point_sign_normal(meshes[e, l], points[e, l, p], max_dist, sign, face_index, face_u, face_v)
+    res = bool(False)
+    if use_winding_number == 0:
+        res = wp.mesh_query_point_sign_normal(
+            meshes[e, l], points[e, l, p], max_dist, sign, face_index, face_u, face_v
+        )
+    else:
+        # robust for meshes with open boundaries / several shells, where the pseudo-normal
+        # test reports points far away from the mesh as inside (see HandModel.use_winding_number)
+        res = wp.mesh_query_point_sign_winding_number(
+            meshes[e, l], points[e, l, p], max_dist, sign, face_index, face_u, face_v, 2.0, 0.5
+        )
     if res:
         closest = wp.mesh_eval_position(meshes[e, l], face_index, face_u, face_v)
         distance_vector = points[e, l, p] - closest
@@ -238,7 +249,7 @@ class CalcSdfFieldBatched(torch.autograd.Function):
     joints. Same signed convention as before (exterior +, interior -)."""
 
     @staticmethod
-    def forward(ctx, meshes_wp, points, max_dist=1e6):
+    def forward(ctx, meshes_wp, points, max_dist=1e6, use_winding_number=False):
         # points: torch [n_env, n_link, n_point, 3] (local frame). warp reads the trailing 3 as vec3.
         n_env, n_link, n_point = points.shape[0], points.shape[1], points.shape[2]
         dev = str(points.device)
@@ -248,7 +259,7 @@ class CalcSdfFieldBatched(torch.autograd.Function):
         wp.launch(
             kernel=mesh_sdf_field_batched,
             dim=(n_env, n_link, n_point),
-            inputs=[meshes_wp, pts_wp, float(max_dist)],
+            inputs=[meshes_wp, pts_wp, float(max_dist), int(bool(use_winding_number))],
             outputs=[sdf_wp, grad_wp],
             device=dev,
         )
@@ -261,7 +272,7 @@ class CalcSdfFieldBatched(torch.autograd.Function):
     def backward(ctx, grad_sdf):
         (grad_dir,) = ctx.saved_tensors
         grad_points = grad_sdf.unsqueeze(-1) * grad_dir  # d(sdf)/d(local point) = exact grad_dir
-        return None, grad_points, None  # (meshes_wp, points, max_dist)
+        return None, grad_points, None, None  # (meshes_wp, points, max_dist, use_winding_number)
 
 
 @wp.kernel

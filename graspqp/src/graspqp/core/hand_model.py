@@ -492,6 +492,7 @@ class HandModel(nn.Module):
         up_axis="z",
         only_use_collision=False,
         use_collision_if_possible=True,
+        use_winding_number=False,
         contact_links=None,
         grasp_type=None,
         grasp_axis=None,
@@ -526,6 +527,12 @@ class HandModel(nn.Module):
             forward_axis (str): Hand approach axis, one of ``x``, ``y``, ``z``
                 and their negatives.
             up_axis (str): Hand up axis (same encoding as ``forward_axis``).
+            use_winding_number (bool): WARP backend only. Decide inside/outside
+                with the generalized winding number instead of the pseudo-normal.
+                Robust for meshes that are not perfectly watertight (e.g. a
+                high-poly visual mesh used as collision geometry); the
+                pseudo-normal test then reports points far away from the mesh as
+                "inside", which corrupts the penetration energy.
             only_use_collision (bool): Use only collision geometry, ignoring
                 visual meshes.
             use_collision_if_possible (bool): Prefer collision meshes when a link
@@ -554,6 +561,14 @@ class HandModel(nn.Module):
         """
         super(HandModel, self).__init__()
         self.device = device
+        # WARP backend only: resolve inside/outside with the generalized winding number
+        # instead of the pseudo-normal. The pseudo-normal test is exact for clean watertight
+        # meshes but returns "inside" for points arbitrarily far away from a mesh with open
+        # boundaries / several shells, which turns E_pen into a distance term that is largest
+        # far from the hand (the link meshes used as collision geometry are the high-poly
+        # visual meshes for some hands, and those are not watertight). The winding number is
+        # the robust choice there. Default False keeps the behaviour of every other hand.
+        self.use_winding_number = use_winding_number
         self.joint_calc_fnc = joint_calc_fnc
         self.jacobian_fnc = jacobian_fnc
         self._file_path = mjcf_path
@@ -608,9 +623,6 @@ class HandModel(nn.Module):
         self.default_state = (
             default_state if default_state is not None else torch.zeros(self.n_dofs, dtype=torch.float, device=device)
         )
-        # 避免零配置奇异点：所有驱动关节给一个小的非零初值
-        if default_state is None:
-            default_state=torch.full((self.n_dofs,), 0.01, device=device),
 
         # load contact points and penetration points
 
@@ -1319,7 +1331,9 @@ class HandModel(nn.Module):
                 np.broadcast_to(mesh_ids[None], (n_batch, mesh_ids.shape[0]))
             )  # (n_batch, n_link)
             meshes = wp.array2d(mesh_ids, dtype=wp.uint64, device=str(self.device))
-            dis_local = wp_utils.CalcSdfFieldBatched.apply(meshes, x_local)  # (B, n_link, N) signed
+            dis_local = wp_utils.CalcSdfFieldBatched.apply(
+                meshes, x_local, 1e6, self.use_winding_number
+            )  # (B, n_link, N) signed (exterior +, interior -)
 
             # (-dis_local) is (B, n_links, N) signed distance (interior positive). The link with
             # the maximal signed distance owns the point (deepest penetrator / nearest surface).
@@ -1371,7 +1385,9 @@ class HandModel(nn.Module):
                     # gradient of E_pen and, summed into the total energy, froze the optimizer
                     # (acceptance -> 0, fingers stuck at the default_state init). CalcSdfField uses the
                     # analytical grad_dir (guarded at dist<1e-8), identical to the object-model path.
-                    dis_local, _ = wp_utils.CalcSdfField.apply(x_local, face_verts.id, 1e6, False)
+                    dis_local, _ = wp_utils.CalcSdfField.apply(
+                        x_local, face_verts.id, 1e6, self.use_winding_number
+                    )
                     dis_signs = torch.where(dis_local > 0, 1, -1)
                     dis_local = dis_local**2
                 # ):
