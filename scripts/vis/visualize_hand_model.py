@@ -57,6 +57,12 @@ if __name__ == "__main__":
         extra_kwargs = {"only_use_collision": True} if args.only_collision else {}
         hand_model = get_hand_model(hand_name, args.device, grasp_type=args.grasp_type, **extra_kwargs)
 
+        # print("=== chain.get_joint_parameter_names() （FK 期望的顺序）===")
+        # names = hand_model.chain.get_joint_parameter_names()
+        # for i, n in enumerate(names):
+        #     print(f"  {i:2d}  {n}")
+        # print("总数:", len(names))
+
         joint_angles = hand_model.default_state
         if args.randomize_joints:
             joint_angles = (
@@ -218,6 +224,7 @@ if __name__ == "__main__":
             link_idx = link_idx[0].detach().cpu()
 
             th = -0.002
+            #### EDIT HERE FOR PURPLE POINTS ####
             mask = pts_distances > th
             pts = pts[mask]
             kept_dist = pts_distances[mask]
@@ -225,6 +232,18 @@ if __name__ == "__main__":
             pts = pts.detach().cpu().numpy()
 
             link_names = hand_model.link_names
+            # # ===== DEBUG: 打印 occupancy 内部真实值 =====
+            # print(f"\n=== Occupancy Debug ===")
+            # print(f"Total samples: {len(pts)}")
+            # print(f"Kept samples:  {int(mask.sum())}")
+            # print(f"link_names: {link_names}")
+            # print(f"kept_link unique: {torch.unique(kept_link).tolist()}")
+            # for li in torch.unique(kept_link).tolist():
+            #     sel = (kept_link == li)
+            #     sdf_sel = kept_dist[sel]
+            #     print(f"  li={li} ({link_names[li] if li < len(link_names) else 'OOB'}): "
+            #         f"{int(sel.sum())} pts, sdf range [{sdf_sel.min():.4f}, {sdf_sel.max():.4f}]")
+            # # ============================================
             # A distinct color per link; one legend entry per link so you can read off
             # which body part each occupied region belongs to.
             palette = pio.templates["plotly"].layout.colorway or [
@@ -236,6 +255,10 @@ if __name__ == "__main__":
                 if not sel.any():
                     continue
                 lname = link_names[li] if li < len(link_names) else f"link_{li}"
+                # if lname == "pinky_middle":
+                #     print(f"\n=== {lname}: {sel.sum()} occupied samples ===")
+                #     for i, p in enumerate(pts[sel]):
+                #         print(f"  [{i}] world = {p.tolist()}")
                 data += [
                     go.Scatter3d(
                         x=pts[sel, 0],
@@ -247,6 +270,18 @@ if __name__ == "__main__":
                         legendgroup=lname,
                     )
                 ]
+                ##
+                # QUERY = np.array([
+                #     [0.19037975370883942, -0.1640506237745285, 0.1487341821193695],
+                #     [0.2346835434436798,  -0.20202530920505524, 0.15506328642368317],
+                # ])
+                # for qi, q in enumerate(QUERY):
+                #     d = np.linalg.norm(pts - q, axis=1)
+                #     idx = int(np.argmin(d))
+                #     print(f"\nQuery[{qi}] 最近采样点 dist={d[idx]*1000:.2f} mm")
+                #     print(f"  world = {pts[idx].tolist()}")
+                #     print(f"  sdf   = {kept_dist[idx].item()*1000:.3f} mm")
+                #     print(f"  link  = {link_names[kept_link[idx].item()]}")
         data = hand_plotly + surface_points_plotly + contact_candidates_plotly + coordinate_system + data
 
     fig = go.Figure(data)

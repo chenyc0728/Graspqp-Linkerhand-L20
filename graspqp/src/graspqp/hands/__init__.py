@@ -29,6 +29,7 @@ from .robotiq2 import getHandModel as getRobotiq2HandModel
 from .robotiq3 import getHandModel as getRobotiq3HandModel
 from .schunk import getHandModel as getSchunkHandModel
 from .shadow import getHandModel as getShadowHandModel
+from .linkerhand_l20 import getHandModel as getLinkerHandL20Model
 
 _REGISTRY = {
     "robotiq3": getRobotiq3HandModel,
@@ -38,6 +39,7 @@ _REGISTRY = {
     "shadow_hand": getShadowHandModel,
     "robotiq2": getRobotiq2HandModel,
     "schunk2": getSchunkHandModel,
+    "linkerhand_l20": getLinkerHandL20Model,
 }
 
 AVAILABLE_HANDS = list(_REGISTRY.keys())

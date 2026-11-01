@@ -1,0 +1,50 @@
+{
+  "index_distal": [
+    ["contacts/index_distal_contact.STL", 8]
+  ],
+  "middle_distal": [
+    ["contacts/middle_distal_contact.STL", 8]
+  ],
+  "ring_distal": [
+    ["contacts/ring_distal_contact.STL", 8]
+  ],
+  "pinky_distal": [
+    ["contacts/pinky_distal_contact.STL", 8]
+  ],
+  "thumb_distal": [
+    ["contacts/thumb_distal_contact.STL", 8]
+  ],
+  "index_proximal": [
+    ["contacts/index_proximal_contact.STL", 8]
+  ],
+  "index_middle": [
+    ["contacts/index_middle_contact.STL", 8]
+  ],
+  "middle_proximal": [
+    ["contacts/middle_proximal_contact.STL", 8]
+  ],
+  "middle_middle": [
+    ["contacts/middle_middle_contact.STL", 8]
+  ],
+  "ring_proximal": [
+    ["contacts/ring_proximal_contact.STL", 8]
+  ],
+  "ring_middle": [
+    ["contacts/ring_middle_contact.STL", 8]
+  ],
+  "pinky_proximal": [
+    ["contacts/pinky_proximal_contact.STL", 8]
+  ],
+  "pinky_middle": [
+    ["contacts/pinky_middle_contact.STL", 8]
+  ],
+  "thumb_proximal": [
+    ["contacts/thumb_proximal_contact.STL", 8]
+  ],
+  "thumb_metacarpals": [
+    ["contacts/thumb_metacarpals_contact.STL", 8]
+  ],
+  "hand_base_link": [
+    ["contacts/hand_base_contact.STL", 8]
+  ]
+}

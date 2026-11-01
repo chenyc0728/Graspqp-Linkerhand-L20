@@ -608,6 +608,9 @@ class HandModel(nn.Module):
         self.default_state = (
             default_state if default_state is not None else torch.zeros(self.n_dofs, dtype=torch.float, device=device)
         )
+        # 避免零配置奇异点：所有驱动关节给一个小的非零初值
+        if default_state is None:
+            default_state=torch.full((self.n_dofs,), 0.01, device=device),
 
         # load contact points and penetration points
 
@@ -788,7 +791,7 @@ class HandModel(nn.Module):
                 if link_name in surface_points_data:
                     self.mesh[link_name]["surface_points"] = torch.tensor(
                         surface_points_data[link_name], dtype=torch.float, device=device
-                    )
+                    ).reshape(-1, 3)
                 else:
                     self.mesh[link_name]["surface_points"] = torch.tensor([], dtype=torch.float, device=device).reshape(
                         0, 3
@@ -797,7 +800,7 @@ class HandModel(nn.Module):
                 if link_name in json_data.get("points", {}):
                     self.mesh[link_name]["contact_candidates"] = torch.tensor(
                         json_data["points"][link_name], dtype=torch.float, device=device
-                    )
+                    ).reshape(-1, 3)
                 else:
                     self.mesh[link_name]["contact_candidates"] = torch.tensor(
                         [], dtype=torch.float, device=device
@@ -806,7 +809,7 @@ class HandModel(nn.Module):
                 if link_name in json_data.get("normals", {}):
                     self.mesh[link_name]["normal_candidates"] = torch.tensor(
                         json_data["normals"][link_name], dtype=torch.float, device=device
-                    )
+                    ).reshape(-1, 3)
                 else:
                     self.mesh[link_name]["normal_candidates"] = torch.tensor(
                         [], dtype=torch.float, device=device
