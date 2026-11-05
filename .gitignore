@@ -1,6 +1,7 @@
 full_dataset/
 min_dataset/
 object/
+Cmap_dataset/
 
 **/*.glb
 _vis

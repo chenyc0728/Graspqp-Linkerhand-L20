@@ -1,0 +1,38 @@
+[apple] files=15 grasps=480 feasible=73 uncertain=0 copied=15 (41.1s)
+[baseball] files=15 grasps=480 feasible=68 uncertain=0 copied=15 (99.5s)
+[bleach_cleanser] files=15 grasps=480 feasible=34 uncertain=0 copied=15 (28.4s)
+[cracker_box] files=15 grasps=480 feasible=8 uncertain=0 copied=8 (17.9s)
+[foam_brick] files=15 grasps=480 feasible=29 uncertain=0 copied=15 (23.7s)
+[2026-11-04 19:25:25.274] [SAPIEN] [critical] SDF creation: Mesh is not suitable for SDF (non-manifold, not watertight, duplicated triangles, ...) and automatic repair failed. The computed SDF might not work as expected. If collisions are not good, try to improve the mesh structure e.g., by applying remeshing.
+[gelatin_box] files=15 grasps=480 feasible=73 uncertain=0 copied=15 (60.6s)
+[hammer] files=15 grasps=480 feasible=132 uncertain=0 copied=15 (110.4s)
+[lemon] files=15 grasps=480 feasible=37 uncertain=0 copied=14 (48.2s)
+[master_chef_can] files=15 grasps=480 feasible=66 uncertain=0 copied=15 (54.1s)
+[2026-11-04 19:29:58.921] [SAPIEN] [critical] SDF creation: Mesh is not suitable for SDF (non-manifold, not watertight, duplicated triangles, ...) and automatic repair failed. The computed SDF might not work as expected. If collisions are not good, try to improve the mesh structure e.g., by applying remeshing.
+[mini_soccer_ball] files=15 grasps=480 feasible=76 uncertain=0 copied=15 (50.3s)
+[2026-11-04 19:30:49.073] [SAPIEN] [critical] SDF creation: Mesh is not suitable for SDF (non-manifold, not watertight, duplicated triangles, ...) and automatic repair failed. The computed SDF might not work as expected. If collisions are not good, try to improve the mesh structure e.g., by applying remeshing.
+[mustard_bottle] files=15 grasps=480 feasible=87 uncertain=0 copied=15 (38.6s)
+[orange] files=15 grasps=480 feasible=73 uncertain=0 copied=15 (40.7s)
+[peach] files=15 grasps=480 feasible=84 uncertain=0 copied=15 (45.4s)
+[2026-11-04 19:32:53.627] [SAPIEN] [critical] SDF creation: Mesh is not suitable for SDF (non-manifold, not watertight, duplicated triangles, ...) and automatic repair failed. The computed SDF might not work as expected. If collisions are not good, try to improve the mesh structure e.g., by applying remeshing.
+[pear] files=15 grasps=480 feasible=70 uncertain=0 copied=15 (34.5s)
+[phillips_screwdriver] files=15 grasps=480 feasible=99 uncertain=0 copied=15 (211.9s)
+[pitcher_base] files=15 grasps=480 feasible=11 uncertain=0 copied=8 (21.5s)
+[plum] files=15 grasps=480 feasible=64 uncertain=0 copied=15 (99.3s)
+[potted_meat_can] files=15 grasps=480 feasible=93 uncertain=0 copied=15 (67.4s)
+[2026-11-04 19:40:08.623] [SAPIEN] [critical] SDF creation: Mesh is not suitable for SDF (non-manifold, not watertight, duplicated triangles, ...) and automatic repair failed. The computed SDF might not work as expected. If collisions are not good, try to improve the mesh structure e.g., by applying remeshing.
+[power_drill] files=15 grasps=480 feasible=61 uncertain=0 copied=15 (72.3s)
+[pudding_box] files=15 grasps=480 feasible=75 uncertain=0 copied=15 (52.5s)
+[rubiks_cube] files=15 grasps=480 feasible=94 uncertain=0 copied=15 (64.0s)
+[2026-11-04 19:43:17.036] [SAPIEN] [critical] SDF creation: Mesh is not suitable for SDF (non-manifold, not watertight, duplicated triangles, ...) and automatic repair failed. The computed SDF might not work as expected. If collisions are not good, try to improve the mesh structure e.g., by applying remeshing.
+[sponge] files=15 grasps=480 feasible=143 uncertain=0 copied=15 (223.6s)
+[strawberry] files=15 grasps=480 feasible=49 uncertain=0 copied=15 (161.1s)
+[sugar_box] files=15 grasps=480 feasible=42 uncertain=0 copied=15 (28.9s)
+[2026-11-04 19:50:10.644] [SAPIEN] [critical] SDF creation: Mesh is not suitable for SDF (non-manifold, not watertight, duplicated triangles, ...) and automatic repair failed. The computed SDF might not work as expected. If collisions are not good, try to improve the mesh structure e.g., by applying remeshing.
+[tomato_soup_can] files=15 grasps=480 feasible=120 uncertain=0 copied=15 (66.3s)
+[toy_airplane] files=15 grasps=480 feasible=131 uncertain=0 copied=15 (65.0s)
+[2026-11-04 19:52:21.850] [SAPIEN] [critical] SDF creation: Mesh is not suitable for SDF (non-manifold, not watertight, duplicated triangles, ...) and automatic repair failed. The computed SDF might not work as expected. If collisions are not good, try to improve the mesh structure e.g., by applying remeshing.
+[tuna_fish_can] files=15 grasps=480 feasible=186 uncertain=0 copied=15 (176.7s)
+[wood_block] files=15 grasps=480 feasible=37 uncertain=0 copied=15 (25.9s)
+TOTAL {"n_grasps": 13440, "n_feasible": 2115, "n_uncertain": 0, "n_files_copied": 405, "elapsed_s": 2029.8}
+index: D:\study\VScodes\Graspqp-Linkerhand-L20\new_grasp_filter\filtered_grasps\index.csv
