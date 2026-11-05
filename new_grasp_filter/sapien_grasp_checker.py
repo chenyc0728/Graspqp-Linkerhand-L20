@@ -60,6 +60,7 @@ class CheckerConfig:
     explosion_dist: float = 1.0         # m
     # --- speed ---------------------------------------------------------------
     max_verts_per_link: int = 300
+    use_gpu: bool = False               # try SAPIEN PhysX GPU before falling back to CPU
     skip_lift_above: float = 0.015      # m, do not simulate the lift beyond this overlap
 
 
@@ -105,14 +106,17 @@ def measure_hull_error(links: Dict[str, Path], n_samples: int = 400) -> Dict[str
 class SapienGraspChecker:
     """Reusable SAPIEN scene for one object; the hand is re-posed per grasp."""
 
-    def __init__(self, object_name: str, cfg: CheckerConfig, log=print):
+    def __init__(self, object_name: str, cfg: CheckerConfig, log=print, root=None):
         self.cfg = cfg
         self.object_name = object_name
         self.log = log
+        self.root = root
         self.urdf = gio.UrdfModel(gio.HAND_URDF)
         self.links = gio.hand_link_meshes()
         self.hulls = build_hand_hulls(self.links)
-        self.object_mesh = gio.object_mesh_path(object_name)
+        self.object_mesh = gio.object_mesh_path(object_name, root)
+        self.device_name = "cpu"
+        self.physx_gpu = False
 
         self.sdf = VoxelSDF(self.object_mesh, pitch=cfg.sdf_pitch)
         self.obj_mesh = self.sdf.mesh
@@ -124,6 +128,19 @@ class SapienGraspChecker:
             self._link_vertices[name] = v[::step]
 
         sapien.set_log_level("error")
+        if getattr(cfg, "use_gpu", False):
+            try:
+                import sapien.physx as px
+
+                if not px.is_gpu_enabled():
+                    px.enable_gpu()
+                self.physx_gpu = bool(px.is_gpu_enabled())
+                self.device_name = "cuda" if self.physx_gpu else "cpu"
+                log(f"[sapien] PhysX GPU enabled: {self.physx_gpu}")
+            except Exception as exc:  # noqa: BLE001 - documented fallback
+                log(f"[sapien] PhysX GPU unavailable ({type(exc).__name__}: {exc}); falling back to CPU")
+                self.physx_gpu = False
+                self.device_name = "cpu"
         self.scene = sapien.Scene()
         self.scene.set_timestep(cfg.timestep)
         self.scene.physx_system.set_scene_collision_id(0)
@@ -227,12 +244,16 @@ class SapienGraspChecker:
             d = self.sdf.query(V)  # negative inside
             all_d.append(d)
             link_min[name] = float(-d.min())
-        d = np.concatenate(all_d)
+        d = np.concatenate(all_d)  # signed distance, negative inside the object
         in_contact = {k: v for k, v in link_min.items() if v < self.cfg.contact_dist}
         pen = float(max(0.0, -d.min()))
+        gap = float(max(0.0, d.min()))
         return {
+            # `geo_min_distance_mm` keeps the v1 name: positive = deepest overlap,
+            # negative = the closest hand point is that far *outside* the object.
             "geo_min_distance_mm": float(-d.min()) * 1000.0,
             "geo_penetration_mm": pen * 1000.0,
+            "geo_closest_gap_mm": gap * 1000.0,
             "geo_contact_links": sorted(in_contact),
             "geo_n_contact_links": len(in_contact),
             "geo_contact_points": int((d < self.cfg.contact_dist).sum()),

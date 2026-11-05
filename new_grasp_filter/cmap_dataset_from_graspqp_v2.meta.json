@@ -1,0 +1,42 @@
+{
+  "output": "new_grasp_filter\\cmap_dataset_from_graspqp_v2.pt",
+  "robot_name": "linkerhand",
+  "n_samples": 1276,
+  "n_objects": 28,
+  "per_object": {
+    "ycb+apple": 16,
+    "ycb+baseball": 21,
+    "ycb+bleach_cleanser": 3,
+    "ycb+cracker_box": 1,
+    "ycb+foam_brick": 24,
+    "ycb+gelatin_box": 39,
+    "ycb+hammer": 108,
+    "ycb+lemon": 16,
+    "ycb+master_chef_can": 48,
+    "ycb+mini_soccer_ball": 25,
+    "ycb+mustard_bottle": 49,
+    "ycb+orange": 24,
+    "ycb+peach": 44,
+    "ycb+pear": 54,
+    "ycb+phillips_screwdriver": 78,
+    "ycb+pitcher_base": 4,
+    "ycb+plum": 15,
+    "ycb+potted_meat_can": 38,
+    "ycb+power_drill": 53,
+    "ycb+pudding_box": 61,
+    "ycb+rubiks_cube": 55,
+    "ycb+sponge": 110,
+    "ycb+strawberry": 23,
+    "ycb+sugar_box": 20,
+    "ycb+tomato_soup_can": 48,
+    "ycb+toy_airplane": 136,
+    "ycb+tuna_fish_can": 138,
+    "ycb+wood_block": 25
+  },
+  "per_source": {
+    "object": 1276
+  },
+  "dedupe": true,
+  "dropped_duplicates": 1276,
+  "note": "q = [x, y, z, roll, pitch, yaw, 16 joints]; translation/rotation are the HAND BASE (hand_base_link) pose in the object frame, R = Rx@Ry@Rz. GraspQP's root_link pose was converted with t_base = t_root + R @ (-0.03, 0, -0.10)."
+}

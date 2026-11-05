@@ -1,27 +1,24 @@
-"""Convert the SAPIEN-filtered GraspQP LinkerHand-L20 grasps to CMapDataset format.
+"""Convert the SAPIEN-filtered GraspQP LinkerHand **left-hand** grasps to CMapDataset format (v2).
 
-Input  : ``filtered_grasps/`` (byte-identical copies of the original ``.pt``
-         files) plus ``filtered_grasps/index.csv`` (which lists, per file, the
-         grasp indices that passed the SAPIEN verification).
-Output : ``cmap_dataset_from_graspqp.pt`` with exactly the top-level structure of
-         ``Cmap_dataset/CMapDataset_filtered/cmap_dataset.pt``::
+Changes vs v1:
 
-             {"info": {robot_name: {"robot_name", "num_total",
-                                    "num_upper_object", "num_per_object"}},
-              "metadata": [(q: float32[22], object_name: str, robot_name: str), ...]}
+* ``q`` now describes the **hand base** (``hand_base_link``), which is what CMap's
+  virtual chain ends at -- v1 exported the GraspQP ``root_link`` pose directly and
+  was therefore offset by ``(-0.03, 0, -0.10)`` m (see REPORT_v2 §2).
+* ``robot_name`` is ``linkerhand`` (LEFT hand).  CMap's historical right-hand
+  identity is renamed to ``linkerhand_right`` in ``CMapDataset.py``.
+* Input is the merged ``filtered_grasps/index.csv`` (``object`` + ``object1``).
+* The two sources are byte-identical in this workspace, so samples are deduped by
+  ``(sha256, grasp_index)`` by default (``--no-dedupe`` disables it); the source
+  breakdown is written to the companion JSON.
 
-``q`` layout (verified against
-``Cmap_dataset/data_urdf/robot/linkerhand/right/linkerhand_l20_right_extended.urdf``):
-``[x, y, z, roll, pitch, yaw, j1..j16]`` where the 6 first entries are the
-``virtual_joint_{x,y,z,roll,pitch,yaw}`` values and the last 16 are the L20
-driven joints in ``grasp_io.DRIVE_NAMES`` order (the same order used by CMap's
-linkerhand URDF when the fixed/mimic joints are skipped).
+Output structure is exactly ``{"info": ..., "metadata": [(q, object_name, robot_name), ...]}``.
 
 Run::
 
     python new_grasp_filter/convert_to_cmap.py \
         --input new_grasp_filter/filtered_grasps \
-        --output new_grasp_filter/cmap_dataset_from_graspqp.pt
+        --output new_grasp_filter/cmap_dataset_from_graspqp_v2.pt
 """
 
 from __future__ import annotations
@@ -41,52 +38,26 @@ sys.path.insert(0, str(HERE))
 
 import grasp_io as gio  # noqa: E402
 
-ROBOT_NAME = "linkerhand"  # key used by Cmap_dataset/data_urdf/robot/urdf_assets_meta.json
+ROBOT_NAME = "linkerhand"  # LEFT hand (see CMapDataset.ROBOT_ALIASES)
+LEGACY_ROBOT_NAME = "linkerhand_right"
 
 
-def matrix_to_rpy_cmap(m: np.ndarray) -> np.ndarray:
-    """(...,3,3) -> (...,3) roll/pitch/yaw such that ``R = Rx(r) @ Ry(p) @ Rz(y)``.
-
-    This is the convention of the CMap "extended" URDF, whose virtual chain is
-    ``virtual_joint_x -> y -> z -> roll -> pitch -> yaw -> fixed -> base_link``
-    with identity joint origins, i.e. ``R = Rx(roll) @ Ry(pitch) @ Rz(yaw)``
-    (note: the *opposite* multiplication order of the usual URDF ``rpy``).
-    """
-    m = np.asarray(m, dtype=np.float64)
-    flat = m.reshape(-1, 3, 3)
-    out = np.zeros((flat.shape[0], 3))
-    for i, r in enumerate(flat):
-        sp = np.clip(r[0, 2], -1.0, 1.0)
-        pitch = np.arcsin(sp)
-        if abs(sp) < 1.0 - 1e-9:
-            roll = np.arctan2(-r[1, 2], r[2, 2])
-            yaw = np.arctan2(-r[0, 1], r[0, 0])
-        else:  # gimbal lock
-            roll = 0.0
-            yaw = np.arctan2(r[1, 0], r[1, 1])
-        out[i] = [roll, pitch, yaw]
-    return out.reshape(*m.shape[:-2], 3)
-
-
-def grasp_to_q(root_pose: np.ndarray, joints: np.ndarray) -> np.ndarray:
-    R = gio.quat_xyzw_to_matrix(root_pose[3:7])
-    rpy = matrix_to_rpy_cmap(R)
-    return np.concatenate([root_pose[:3], rpy, joints]).astype(np.float32)
-
-
-def convert(input_dir: Path, output: Path, include_uncertain: bool = False) -> dict:
+def convert(input_dir: Path, output: Path, include_uncertain: bool = False,
+            dedupe: bool = True, robot_name: str = ROBOT_NAME) -> dict:
     input_dir = Path(input_dir).resolve()
     index_path = input_dir / "index.csv"
     if not index_path.exists():
         raise FileNotFoundError(f"missing {index_path}; run run_filter.py first")
 
-    samples = []
     with open(index_path, newline="", encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
+    rows.sort(key=lambda r: (r.get("source", ""), r["object"], r["grasp_file"]))
 
-    # deterministic order -> idempotent output
-    rows.sort(key=lambda r: (r["object"], r["grasp_file"]))
+    samples = []
+    seen = set()
     per_object = OrderedDict()
+    per_source = OrderedDict()
+    dropped_dupes = 0
     for row in rows:
         obj = row["object"]
         run_name = f"ycb+{obj}"
@@ -100,32 +71,59 @@ def convert(input_dir: Path, output: Path, include_uncertain: bool = False) -> d
             continue
         g = gio.load_grasp_file(path)
         for i in sorted(set(idx)):
-            samples.append((grasp_to_q(g["root_pose"][i], g["joints"][i]), run_name, obj))
+            key = (row.get("sha256", ""), i)
+            if dedupe and key in seen:
+                dropped_dupes += 1
+                continue
+            seen.add(key)
+            q = gio.root_pose_to_cmap_q(g["root_pose"][i], g["joints"][i])
+            samples.append((q, run_name, obj, row.get("source", "")))
             per_object[run_name] = per_object.get(run_name, 0) + 1
+            src = row.get("source", "") or "unknown"
+            per_source[src] = per_source.get(src, 0) + 1
 
-    metadata = [(torch.from_numpy(q), run_name, ROBOT_NAME) for q, run_name, _ in samples]
+    metadata = [(torch.from_numpy(q), run_name, robot_name) for q, run_name, _, _ in samples]
     info = {
-        ROBOT_NAME: {
-            "robot_name": ROBOT_NAME,
+        robot_name: {
+            "robot_name": robot_name,
             "num_total": len(metadata),
             "num_upper_object": max(per_object.values()) if per_object else 0,
             "num_per_object": dict(per_object),
         }
     }
-    payload = {"info": info, "metadata": metadata}
-    torch.save(payload, output)
-    return {"n_samples": len(metadata), "objects": len(per_object), "per_object": dict(per_object)}
+    torch.save({"info": info, "metadata": metadata}, output)
+
+    meta = {
+        "output": str(output),
+        "robot_name": robot_name,
+        "n_samples": len(metadata),
+        "n_objects": len(per_object),
+        "per_object": dict(per_object),
+        "per_source": dict(per_source),
+        "dedupe": bool(dedupe),
+        "dropped_duplicates": dropped_dupes,
+        "note": (
+            "q = [x, y, z, roll, pitch, yaw, 16 joints]; translation/rotation are the "
+            "HAND BASE (hand_base_link) pose in the object frame, R = Rx@Ry@Rz. "
+            "GraspQP's root_link pose was converted with t_base = t_root + R @ (-0.03, 0, -0.10)."
+        ),
+    }
+    output.with_suffix(".meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    return meta
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--input", default=str(HERE / "filtered_grasps"))
-    ap.add_argument("--output", default=str(HERE / "cmap_dataset_from_graspqp.pt"))
-    ap.add_argument("--include-uncertain", action="store_true", default=False,
-                    help="also export grasps whose verdict is 'uncertain'")
+    ap.add_argument("--output", default=str(HERE / "cmap_dataset_from_graspqp_v2.pt"))
+    ap.add_argument("--include-uncertain", action="store_true", default=False)
+    ap.add_argument("--dedupe", dest="dedupe", action="store_true", default=True)
+    ap.add_argument("--no-dedupe", dest="dedupe", action="store_false")
+    ap.add_argument("--robot-name", default=ROBOT_NAME)
     args = ap.parse_args()
-    stats = convert(Path(args.input), Path(args.output), args.include_uncertain)
-    print(json.dumps({"output": str(Path(args.output).resolve()), **stats}, indent=2))
+    stats = convert(Path(args.input), Path(args.output), args.include_uncertain,
+                    args.dedupe, args.robot_name)
+    print(json.dumps({k: v for k, v in stats.items() if k != "per_object"}, indent=2))
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 full_dataset/
 min_dataset/
 object/
+object1/
 Cmap_dataset/
 
 **/*.glb

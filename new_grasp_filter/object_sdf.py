@@ -35,13 +35,21 @@ class VoxelSDF:
         self._shape = np.asarray(self.matrix.shape)
 
     def query(self, points: np.ndarray) -> np.ndarray:
-        """Signed distance (m, negative = inside) for (N, 3) world points."""
+        """Signed distance (m, **negative inside**) for (N, 3) world points.
+
+        The grid only covers the object's bounding box.  Points outside are *not*
+        simply clamped (that was a v2 bug: every far point inherited a boundary
+        value of a few mm, which made distant hands look like they were touching
+        or penetrating).  Instead the clamped value is corrected by the distance
+        between the point and the clamped grid position, which turns the field
+        into a conservative linear extrapolation outside the box.
+        """
         pts = np.asarray(points, dtype=np.float64).reshape(-1, 3)
         h = np.concatenate([pts, np.ones((len(pts), 1))], axis=1)
         f = (self.T_inv @ h.T).T[:, :3]
-        f = np.clip(f, 0, self._shape - 1.0001)
-        i0 = np.floor(f).astype(int)
-        frac = f - i0
+        f_clamped = np.clip(f, 0, self._shape - 1.0001)
+        i0 = np.floor(f_clamped).astype(int)
+        frac = f_clamped - i0
         out = np.zeros(len(pts))
         for dx in (0, 1):
             for dy in (0, 1):
@@ -52,4 +60,7 @@ class VoxelSDF:
                         * (frac[:, 2] if dz else 1 - frac[:, 2])
                     )
                     out += w * self.sdf[i0[:, 0] + dx, i0[:, 1] + dy, i0[:, 2] + dz]
-        return out
+        # world-space distance between the point and the clamped position
+        clamped_world = (self.T @ np.concatenate([f_clamped, np.ones((len(pts), 1))], axis=1).T).T[:, :3]
+        outside_dist = np.linalg.norm(pts - clamped_world, axis=1)
+        return out + outside_dist
