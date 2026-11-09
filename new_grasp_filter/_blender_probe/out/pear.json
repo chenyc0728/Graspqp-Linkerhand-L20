@@ -1,0 +1,23 @@
+{
+  "input": "object/ycb/pear/pear.stl",
+  "output": "new_grasp_filter/_blender_probe/out/pear_repaired.stl",
+  "steps": [
+    "merge_by_distance+fill_holes+normals",
+    "voxel_remesh(0.000536)",
+    "smooth(0.5,5)",
+    "decimate(0.361)"
+  ],
+  "blender": "5.1.0",
+  "faces_in": 16378,
+  "verts_in": 8192,
+  "nonmanifold_in": 6,
+  "bbox_diag": 0.13722684522439896,
+  "merge_threshold": 1.3722684522439896e-06,
+  "faces_after_cleanup": 16378,
+  "nonmanifold_after_cleanup": 6,
+  "voxel_size": 0.0005360423641578084,
+  "faces_out": 51395,
+  "verts_out": 32758,
+  "nonmanifold_out": 0,
+  "out_bytes": 3275684
+}
