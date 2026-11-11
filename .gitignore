@@ -3,6 +3,7 @@ min_dataset/
 object/
 object1/
 Cmap_dataset/
+new_grasp_filter/filtered_grasps/object_contactdb/
 
 **/*.glb
 _vis

@@ -19,10 +19,29 @@ Outputs (under ``--output-dir``, default ``new_grasp_filter/``)::
     logs/<source>/<object>.jsonl       # one line per grasp, all metrics
     logs/<source>/summary.json
 
+New in P1 (still backwards compatible):
+
+* ``--output-index-dir <dir>``     write ``index*.csv`` into that dir instead of
+  ``<output-dir>/filtered_grasps`` (so a re-screen no longer overwrites the
+  contactdb index, see HANDOFF §7-14);
+* ``--output-index-prefix <str>``  index file names become ``<str>_index.csv`` /
+  ``<str>_index_grasps.csv`` (used to keep object / object1 re-screens apart);
+* ``--objects a b c``              only screen the given objects (``--object`` kept);
+* ``--no-merge``                   explicit guard: refuse ``--merge-from``.
+
+A re-screen must be a *fresh* screening: without ``--merge-from`` this script never
+inherits any old verdict, and every written row carries ``merged_from=""`` (that is
+what stops the v1 phantom positives from coming back).
+
 Run::
 
     python new_grasp_filter/run_filter.py --grasp-path object1 --source-tag object1 \
         --merge-from new_grasp_filter/filtered_grasps/index_v1_object.csv
+
+    # P1 re-screen (fresh, isolated index):
+    python new_grasp_filter/run_filter.py --grasp-path object/ycb --source-tag object_rescreen \
+        --device cpu --output-index-dir new_grasp_filter/filtered_grasps/rescreen \
+        --output-index-prefix ycb_object
 """
 
 from __future__ import annotations
@@ -88,6 +107,24 @@ def fnum(x, default=""):
         return default
 
 
+def _dep_versions() -> dict:
+    info = {"python": sys.version.split()[0]}
+    for mod in ("torch", "trimesh", "numpy", "sapien"):
+        try:
+            m = __import__(mod)
+            info[mod] = getattr(m, "__version__", "?")
+        except Exception as exc:  # noqa: BLE001
+            info[mod] = f"unavailable: {type(exc).__name__}"
+    try:
+        import subprocess
+
+        info["git_commit"] = subprocess.run(["git", "rev-parse", "HEAD"], cwd=HERE,
+                                            capture_output=True, text=True, check=False).stdout.strip()
+    except Exception:  # noqa: BLE001
+        info["git_commit"] = "?"
+    return info
+
+
 def run(args):
     out_dir = Path(args.output_dir).resolve()
     root = Path(args.grasp_path).resolve() if args.grasp_path else gio.YCB_ROOT
@@ -98,10 +135,34 @@ def run(args):
         root = root / "ycb"
     source = args.source_tag or default_source_tag(root.parent if root.name == "ycb" else root)
 
+    if getattr(args, "no_merge", False) and args.merge_from:
+        raise SystemExit("--no-merge 与 --merge-from 互斥：重筛必须是全新筛选")
+    index_dir = Path(args.output_index_dir).resolve() if getattr(args, "output_index_dir", None) else None
+    prefix = getattr(args, "output_index_prefix", "") or ""
+    if prefix and any(c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-" for c in prefix):
+        raise SystemExit(f"--output-index-prefix 只允许 [A-Za-z0-9_-]：{prefix!r}")
+
     gio.set_backend("numpy" if args.legacy_numpy else "torch")
     if not args.legacy_numpy:
         gio.set_device(args.device)
     print(f"[setup] root={root} source={source} backend={gio.get_backend()} device={gio.get_device()}", flush=True)
+    extra_objects = list(getattr(args, "objects", None) or [])
+    banner = {
+        "grasp_path": str(root), "source_tag": source, "merge_from": args.merge_from,
+        "merge_from_is_none": args.merge_from is None,
+        "output_dir": str(out_dir),
+        "index_dir": str(index_dir if index_dir else out_dir / "filtered_grasps"),
+        "index_prefix": prefix,
+        "objects_filter": extra_objects or None,
+        "object_filter": args.object, "grasp_filter": args.grasp,
+        "limit": args.limit, "max_files_per_object": args.max_files_per_object,
+        "backend": gio.get_backend(), "device": gio.get_device(), "physx_gpu": bool(args.gpu),
+        "deps": _dep_versions(),
+        "started": time.strftime("%Y-%m-%d %H:%M:%S"),
+    }
+    print("[banner] " + json.dumps(banner, ensure_ascii=False, sort_keys=True), flush=True)
+    if args.merge_from is None:
+        print("[fresh] merge_from=None -> 全新筛选，不继承任何旧判定（merged_from 列将全为空）", flush=True)
 
     log_dir = out_dir / "logs" / source
     log_dir.mkdir(parents=True, exist_ok=True)
@@ -117,11 +178,20 @@ def run(args):
         cfg.lift_min_rise = args.lift_min_rise_mm / 1000.0
     cfg.use_gpu = bool(args.gpu)
 
-    objects = [args.object] if args.object else discover_objects(root)
+    if args.object:
+        objects = [args.object]
+    elif extra_objects:
+        available = discover_objects(root)
+        missing = [o for o in extra_objects if o not in available]
+        if missing:
+            raise SystemExit(f"--objects 里有 {root} 下不存在的物体: {missing}")
+        objects = [o for o in extra_objects]
+    else:
+        objects = discover_objects(root)
     rows, grasp_rows = [], []
     file_results = {}  # sha256 -> {"feasible": [...], "metrics": {i: row}} for every evaluated file
     summary = {"source": source, "root": str(root), "config": vars(cfg), "objects": {},
-               "started": time.strftime("%Y-%m-%d %H:%M:%S")}
+               "banner": banner, "started": time.strftime("%Y-%m-%d %H:%M:%S")}
     t_start = time.time()
 
     import trimesh
@@ -238,7 +308,7 @@ def run(args):
         grasp_rows.extend(merged["grasps"])
         summary["merged"] = merged["stats"]
 
-    write_indexes(out_dir, rows, grasp_rows)
+    write_indexes(out_dir, rows, grasp_rows, index_dir=index_dir, prefix=prefix)
     summary["total"] = {
         "n_grasps": sum(v["n_grasps"] for v in summary["objects"].values()),
         "n_feasible": sum(v["n_feasible"] for v in summary["objects"].values()),
@@ -246,9 +316,12 @@ def run(args):
         "n_files_copied": sum(v["n_files_copied"] for v in summary["objects"].values()),
         "elapsed_s": round(time.time() - t_start, 1),
     }
+    summary["total"]["merged_from_rows"] = sum(1 for r in rows if r.get("merged_from"))
+    summary["finished"] = time.strftime("%Y-%m-%d %H:%M:%S")
     (log_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     print("TOTAL", json.dumps(summary["total"]), flush=True)
-    print("index:", out_dir / "filtered_grasps" / "index.csv", flush=True)
+    stem = f"{prefix}_" if prefix else ""
+    print("index:", (index_dir if index_dir else out_dir / "filtered_grasps") / f"{stem}index.csv", flush=True)
 
 
 def merge_previous(index_path: Path, out_dir: Path, current_grasps=None, file_results=None) -> dict:
@@ -376,20 +449,30 @@ def merge_previous(index_path: Path, out_dir: Path, current_grasps=None, file_re
     return {"rows": rows_out, "grasps": grasps_out, "stats": stats}
 
 
-def write_indexes(out_dir: Path, rows, grasp_rows):
-    fg = out_dir / "filtered_grasps"
+def write_indexes(out_dir: Path, rows, grasp_rows, index_dir: Path | None = None, prefix: str = ""):
+    """Write the two index CSVs.
+
+    ``index_dir``/``prefix`` default to the historical layout
+    (``<out_dir>/filtered_grasps/index.csv`` + ``index_grasps.csv``).
+    ``grasp_file`` paths in the rows stay relative to ``<out_dir>/filtered_grasps``
+    so that both layouts resolve the same way.
+    """
+    fg = Path(index_dir) if index_dir else out_dir / "filtered_grasps"
     fg.mkdir(parents=True, exist_ok=True)
+    stem = f"{prefix}_" if prefix else ""
     rows = sorted(rows, key=lambda r: (r["source"], r["object"], r["grasp_file"]))
     grasp_rows = sorted(grasp_rows, key=lambda r: (r["source"], r["object"], r["grasp_file"], int(r["grasp_index"])))
     grasp_rows = [{k: v for k, v in r.items() if k != "_sha"} for r in grasp_rows]
-    with open(fg / "index.csv", "w", newline="", encoding="utf-8") as f:
+    idx_path, gr_path = fg / f"{stem}index.csv", fg / f"{stem}index_grasps.csv"
+    with open(idx_path, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=INDEX_FIELDS)
         w.writeheader()
         w.writerows(rows)
-    with open(fg / "index_grasps.csv", "w", newline="", encoding="utf-8") as f:
+    with open(gr_path, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=GRASP_FIELDS)
         w.writeheader()
         w.writerows(grasp_rows)
+    print(f"[index] wrote {idx_path} ({len(rows)} rows)  {gr_path} ({len(grasp_rows)} rows)", flush=True)
 
 
 def main():
@@ -408,6 +491,14 @@ def main():
     ap.add_argument("--output-dir", default=str(HERE))
     ap.add_argument("--max-penetration-mm", type=float, default=None)
     ap.add_argument("--lift-min-rise-mm", type=float, default=None)
+    ap.add_argument("--objects", nargs="+", default=None,
+                    help="只筛这些物体（P1 pilot 用）；不传则处理 --grasp-path 下全部物体")
+    ap.add_argument("--output-index-dir", default=None,
+                    help="index*.csv 写到该目录（默认 <output-dir>/filtered_grasps，行为不变）")
+    ap.add_argument("--output-index-prefix", default="",
+                    help="index 文件名前缀，如 ycb_object -> ycb_object_index.csv（默认空）")
+    ap.add_argument("--no-merge", action="store_true",
+                    help="显式禁止 merge_from（默认就不 merge；与 --merge-from 互斥）")
     ap.add_argument("--include-uncertain", dest="include_uncertain", action="store_true", default=True)
     ap.add_argument("--no-include-uncertain", dest="include_uncertain", action="store_false")
     args = ap.parse_args()

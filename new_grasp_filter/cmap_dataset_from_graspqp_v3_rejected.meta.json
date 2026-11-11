@@ -1,0 +1,10 @@
+{
+  "output": "/home/chenyc/codes/graspqp/new_grasp_filter/cmap_dataset_from_graspqp_v3_rejected.pt",
+  "source_dataset": "/home/chenyc/codes/graspqp/new_grasp_filter/cmap_dataset_from_graspqp_v3.pt",
+  "num_rejected": 1,
+  "per_object": {
+    "ycb+apple": 1
+  },
+  "decisions_file": "/tmp/mr/kill/dec.jsonl",
+  "reviewed_at": "2026-11-10T17:55:26+08:00"
+}

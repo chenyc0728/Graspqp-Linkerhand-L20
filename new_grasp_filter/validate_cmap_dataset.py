@@ -45,6 +45,10 @@ import grasp_io as gio  # noqa: E402
 CMAP_ROOT = gio.CMAP_ROOT
 CMAP_DATASET_DIR = CMAP_ROOT / "dataset"
 
+import itertools  # noqa: E402
+
+_MODULE_COUNTER = itertools.count()
+
 # --------------------------------------------------------------------------
 # 1. minimal utils.hand_model shim (CMapDataset imports it)
 # --------------------------------------------------------------------------
@@ -143,14 +147,22 @@ class _PathShim:
 
 
 def load_cmap_module(dataset_override: Path | None = None):
-    inject_hand_model_shim()
-    sys.path.insert(0, str(CMAP_DATASET_DIR))
-    import importlib
+    """Load a **fresh** ``CMapDataset`` module object with scoped paths.
 
-    if "CMapDataset" in sys.modules:
-        mod = importlib.reload(sys.modules["CMapDataset"])
-    else:
-        mod = importlib.import_module("CMapDataset")
+    A fresh module object per call matters: ``mod.os`` is set per instance, and
+    ``importlib.reload`` would mutate the module already handed out (so a later
+    ``load_cmap_module(dataset_override=...)`` used to silently re-point the
+    *reference* dataset checks at our file).
+    """
+    inject_hand_model_shim()
+    import importlib.util
+    import itertools
+
+    idx = next(_MODULE_COUNTER)
+    path = CMAP_DATASET_DIR / "CMapDataset.py"
+    spec = importlib.util.spec_from_file_location(f"_cmap_dataset_{idx}", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
     prefix = {str(CMAP_ROOT / "data"): str(CMAP_ROOT)}
     files = {}
     if dataset_override is not None:
@@ -243,32 +255,30 @@ def check_alias_behaviour(tmp_dir: Path):
     return out
 
 
-def check_q_roundtrip(dataset_path: Path, n: int = 20):
+def check_q_roundtrip(dataset_path: Path, n: int = 20, index_csvs=None, prefixes=None):
     """q (CMap) -> left extended URDF -> hand base pose vs the original GraspQP pose.
 
     The metadata order is reproduced exactly as ``convert_to_cmap.convert`` builds
-    it (rows sorted by source/object/file, feasible indices sorted, optional
-    dedupe by (sha256, index)), so every q is paired with its source grasp.
+    it: the inputs (index CSVs) in the given order, rows sorted by
+    ``source/object/file``, feasible indices sorted, deduped by
+    ``(sha256, index)`` -- so every q is paired with its source grasp.  Pass
+    ``--index`` / ``--prefixes`` when validating a merged (multi-input) dataset;
+    the default is the single contactdb index of the old v2 era.
     """
-    import csv
+    import convert_to_cmap as c2c
 
     left = gio.UrdfModel(gio.cmap_left_urdf(repaired=True))
     chain = left.pk_chain_on("cpu")
     names = chain.get_joint_parameter_names()
-    with open(HERE / "filtered_grasps" / "index.csv", newline="", encoding="utf-8") as f:
-        rows = list(csv.DictReader(f))
-    rows.sort(key=lambda r: (r.get("source", ""), r["object"], r["grasp_file"]))
-    pairs, seen = [], set()
-    for r in rows:
-        idx = [int(x) for x in (r["feasible_indices"] or "").split()]
-        if not idx:
-            continue
-        for i in sorted(set(idx)):
-            key = (r.get("sha256", ""), i)
-            if key in seen:
-                continue
-            seen.add(key)
-            pairs.append((r, i))
+    if index_csvs:
+        paths = [Path(p).resolve() for p in index_csvs]
+    else:
+        paths = [HERE / "filtered_grasps" / "index.csv"]
+    prefs = list(prefixes or [])
+    if prefs and len(prefs) != len(paths):
+        raise SystemExit(f"--prefixes has {len(prefs)} entries but --index has {len(paths)}")
+    specs = [(p, prefs[i] if prefs else "ycb") for i, p in enumerate(paths)]
+    pairs = list(c2c.iter_pairs(specs, False, True))
 
     data = torch.load(dataset_path, weights_only=False)
     md = data["metadata"]
@@ -278,8 +288,8 @@ def check_q_roundtrip(dataset_path: Path, n: int = 20):
     worst_rot, worst_trans = 0.0, 0.0
     for k in picks:
         q, obj_name, _ = md[int(k)]
-        row, i = pairs[int(k)]
-        g = gio.load_grasp_file(HERE / "filtered_grasps" / row["grasp_file"])
+        row, i, path, run_name, _ = pairs[int(k)]
+        g = gio.load_grasp_file(path)
         R0 = gio.quat_xyzw_to_matrix(g["root_pose"][i, 3:7])
         t0 = g["root_pose"][i, :3] + R0 @ gio.ROOT_TO_HAND_BASE
         qv = q.numpy().astype(np.float64)
@@ -296,12 +306,23 @@ def check_q_roundtrip(dataset_path: Path, n: int = 20):
         worst_rot = max(worst_rot, float(np.abs(T[:3, :3] - R0).max()))
         worst_trans = max(worst_trans, float(np.abs(T[:3, 3] - t0).max()))
     return {"n_checked": len(picks), "max_abs_rotation_error": worst_rot,
-            "max_abs_translation_error_m": worst_trans}
+            "max_abs_translation_error_m": worst_trans,
+            "index_inputs": [{"index_csv": str(p), "prefix": pre} for p, pre in specs],
+            "fk_backend": "pytorch_kinematics",
+            "note": ("this env's pytorch_kinematics fork (renezurbruegg @92c3b97) adds "
+                     "+/-1e-2 rad per revolute joint in Frame.get_transform, so the "
+                     "rotation error is ~1e-2 here; the numpy FK gives ~2e-7 "
+                     "(see verify_cmap_v3.py).")}
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dataset", default=str(HERE / "cmap_dataset_from_graspqp_v2.pt"))
+    ap.add_argument("--index", nargs="+", default=None,
+                    help="index CSV(s) used to build --dataset, in the same order as the "
+                         "conversion (e.g. index_ycb.csv index.csv); default: filtered_grasps/index.csv")
+    ap.add_argument("--prefixes", nargs="+", default=None,
+                    help="object_name prefix per --index (e.g. ycb contactdb)")
     ap.add_argument("--out", default=str(HERE / "logs" / "validate_cmap_dataset.json"))
     args = ap.parse_args()
     dataset = Path(args.dataset).resolve()
@@ -316,21 +337,25 @@ def main():
         ["allegro"], ["ycb+lemon", "ycb+baseball", "contactdb+apple"], is_train=True,
         label="reference cmap_dataset.pt (allegro)",
     )
-    # our v2 dataset through the same class
+    # our dataset (v2 ycb-only or v3 ycb+contactdb) through the same class
     our_mod = load_cmap_module(dataset_override=dataset)
     data = torch.load(dataset, weights_only=False)
     objects = sorted(data["info"]["linkerhand"]["num_per_object"].keys())
     report["v2_dataset"] = check_dataset(
         our_mod, dataset, ["linkerhand"], objects, is_train=False,
-        label="cmap_dataset_from_graspqp_v2.pt (left linkerhand)", n_getitem=1,
+        label=f"{dataset.name} (left linkerhand)", n_getitem=1,
     )
+    report["v2_dataset"]["n_objects_arg"] = len(objects)
+    report["v2_dataset"]["object_name_prefixes"] = sorted({o.split("+")[0] for o in objects})
+    report["v2_dataset"]["object_name_example"] = objects[:3]
     # alias behaviour on the reference file: right-hand identity must be selectable
     report["reference_linkerhand_right"] = check_dataset(
         ref_mod, CMAP_ROOT / "CMapDataset_filtered/cmap_dataset.pt",
         ["linkerhand_right"], ["ycb+lemon"], is_train=True, label="reference with linkerhand_right",
     )
     report["alias_behaviour"] = check_alias_behaviour(HERE / "logs" / "alias_test")
-    report["q_roundtrip"] = check_q_roundtrip(dataset)
+    report["q_roundtrip"] = check_q_roundtrip(dataset, index_csvs=args.index,
+                                              prefixes=args.prefixes)
 
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
